@@ -67,12 +67,24 @@ import os
 unpacked_path = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 
 # ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 1  # change this to test with more or fewer folders
+NUM_FOLDERS = 20  # change this to test with more or fewer folders
+
+N_PIXELS = 4544
+N_PER_FOLDER = 1000
+total_files = NUM_FOLDERS * N_PER_FOLDER
+
+print(f"Pre-allocating arrays for {total_files} spectra of {N_PIXELS} pixels...")
+
+# Pre-allocate arrays
+
+# spectra = np.empty((total_files, N_PIXELS), dtype=np.float32)
+# noise_list = np.empty((total_files, N_PIXELS), dtype=np.float32)
+
+all_spectra = []
+all_noise = []
+
 # ──────────────────────────────────────────────────────────────────────────────
- 
-spectra = []
-noise_list = []
- 
+
 bin_folders = sorted([
     f for f in os.listdir(unpacked_path)
     if os.path.isdir(os.path.join(unpacked_path, f))
@@ -80,39 +92,76 @@ bin_folders = sorted([
  
 print(f"Reading {len(bin_folders)} folder(s): {bin_folders}\n")
  
+# for folder in bin_folders:
+#     folder_path = os.path.join(unpacked_path, folder)
+#     fits_files = sorted([f for f in os.listdir(folder_path) if f.endswith(".fits")])
+ 
+#     print(f"  [{folder}] Found {len(fits_files)} FITS files...")
+ 
+#     for filename in fits_files:
+#         filepath = os.path.join(folder_path, filename)
+#         with fits.open(filepath) as hdu:
+#             spec = hdu[1].data["spec"]
+#             var = hdu[1].data["var"]
+#             spectra.append(spec)
+#             noise_list.append(np.sqrt(var))
+
+# idx = 0
+# for folder in bin_folders:
+#     folder_path = os.path.join(unpacked_path, folder)
+#     fits_files = sorted([f for f in os.listdir(folder_path) if f.endswith(".fits")])
+#     print(f"  [{folder}] Found {len(fits_files)} FITS files...")
+#     for filename in fits_files:
+#         filepath = os.path.join(folder_path, filename)
+#         with fits.open(filepath, memmap=False) as hdu:
+#             spectra[idx] = hdu[1].data["spec"]
+#             noise_list[idx] = np.sqrt(hdu[1].data["var"])
+#             idx += 1
+
+# spectra = np.array(spectra)
+# noise_list = np.array(noise_list)
+
 for folder in bin_folders:
     folder_path = os.path.join(unpacked_path, folder)
     fits_files = sorted([f for f in os.listdir(folder_path) if f.endswith(".fits")])
- 
-    print(f"  [{folder}] Found {len(fits_files)} FITS files...")
- 
-    for filename in fits_files:
+    print(f"  [{folder}] Loading...")
+
+    bin_spectra = np.empty((N_PER_FOLDER, N_PIXELS), dtype=np.float32)
+    bin_noise = np.empty((N_PER_FOLDER, N_PIXELS), dtype=np.float32)
+
+    for i, filename in enumerate(fits_files):
         filepath = os.path.join(folder_path, filename)
-        with fits.open(filepath) as hdu:
-            spec = hdu[1].data["spec"]
-            var = hdu[1].data["var"]
-            spectra.append(spec)
-            noise_list.append(np.sqrt(var))
+        with fits.open(filepath, memmap=False) as hdu:
+            bin_spectra[i] = hdu[1].data["spec"]
+            bin_noise[i] = np.sqrt(hdu[1].data["var"])
 
-spectra = np.array(spectra)
-noise_list = np.array(noise_list)
+    all_spectra.append(bin_spectra)
+    all_noise.append(bin_noise)
 
-X = np.stack([spectra, noise_list], axis=-1) #Convert it to the spectra + noise (1000, N_wavelengths, 2) shape
+all_spectra = np.concatenate(all_spectra, axis=0)
+all_noise_list = np.concatenate(all_noise, axis=0)
 
-print("Spectra shape:", spectra.shape)
-print("Noise shape:", noise_list.shape)
+print(f"\nDone! Loaded {len(all_spectra)} spectra total.")
+
+X = np.stack([all_spectra, all_noise_list], axis=-1) #Convert it to the spectra + noise (1000, N_wavelengths, 2) shape
+
+print("Spectra shape:", all_spectra.shape)
+print("Noise shape:", all_noise.shape)
  
-print(f"\nDone! Loaded {len(spectra)} spectra total.")
+print(f"\nDone! Loaded {len(all_spectra)} spectra total.")
 
-import pandas as pd
+# import pandas as pd
 
-# peek at the first spectrum
-df = pd.DataFrame({
-    "spec": spectra[0],
-    "noise": noise_list[0]
-})
+# # peek at the first spectrum
+# df = pd.DataFrame({
+#     "spec": spectra[0],
+#     "noise": noise_list[0]
+# })
 
-print(df.head(20))
-print(f"\nShape: {df.shape}")
-print(f"\nBasic stats:\n{df.describe()}")
+# print(df.head(20))
+# print(f"\nShape: {df.shape}")
+# print(f"\nBasic stats:\n{df.describe()}")
+
+
+
 
