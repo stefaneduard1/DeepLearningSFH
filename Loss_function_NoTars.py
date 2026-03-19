@@ -60,7 +60,59 @@ class StarNet2026:
         return model
 
 
-import tarfile
 import numpy as np
 from astropy.io import fits
 import os 
+
+unpacked_path = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted"
+
+# ── Control how many bin folders to read ──────────────────────────────────────
+NUM_FOLDERS = 1  # change this to test with more or fewer folders
+# ──────────────────────────────────────────────────────────────────────────────
+ 
+spectra = []
+noise_list = []
+ 
+bin_folders = sorted([
+    f for f in os.listdir(unpacked_path)
+    if os.path.isdir(os.path.join(unpacked_path, f))
+])[:NUM_FOLDERS]
+ 
+print(f"Reading {len(bin_folders)} folder(s): {bin_folders}\n")
+ 
+for folder in bin_folders:
+    folder_path = os.path.join(unpacked_path, folder)
+    fits_files = sorted([f for f in os.listdir(folder_path) if f.endswith(".fits")])
+ 
+    print(f"  [{folder}] Found {len(fits_files)} FITS files...")
+ 
+    for filename in fits_files:
+        filepath = os.path.join(folder_path, filename)
+        with fits.open(filepath) as hdu:
+            spec = hdu[1].data["spec"]
+            var = hdu[1].data["var"]
+            spectra.append(spec)
+            noise_list.append(np.sqrt(var))
+
+spectra = np.array(spectra)
+noise_list = np.array(noise_list)
+
+X = np.stack([spectra, noise_list], axis=-1) #Convert it to the spectra + noise (1000, N_wavelengths, 2) shape
+
+print("Spectra shape:", spectra.shape)
+print("Noise shape:", noise_list.shape)
+ 
+print(f"\nDone! Loaded {len(spectra)} spectra total.")
+
+import pandas as pd
+
+# peek at the first spectrum
+df = pd.DataFrame({
+    "spec": spectra[0],
+    "noise": noise_list[0]
+})
+
+print(df.head(20))
+print(f"\nShape: {df.shape}")
+print(f"\nBasic stats:\n{df.describe()}")
+
