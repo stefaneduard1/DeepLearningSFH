@@ -37,7 +37,7 @@ class StarNet2026:
         self.optimizer = Adam(learning_rate=self.lr)
         self.last_layer_activation = 'linear'
 
-    def model(self, N_wavelength_pixels):
+    def model(self, N_wavelength_pixels, units=4):
         input_tensor = Input(shape=(N_wavelength_pixels, 2)) #2 inputs flux and noise spectrum
         cnn_layer_1 = Conv1D(kernel_initializer=self.initializer, activation=self.activation, padding="same",
                              filters=self.num_filters[0], kernel_size=self.filter_len,
@@ -52,7 +52,7 @@ class StarNet2026:
                         kernel_regularizer=l2(self.l2), bias_regularizer=l2(self.l2))(flattener)
         layer_4 = Dense(units=self.num_hidden[1], kernel_initializer=self.initializer, activation=self.activation,
                         kernel_regularizer=l2(self.l2), bias_regularizer=l2(self.l2))(layer_3)
-        layer_out = Dense(units=8, kernel_initializer=self.initializer,
+        layer_out = Dense(units=units, kernel_initializer=self.initializer,
                           activation=self.last_layer_activation, name='output')(
             layer_4)
         model = Model(inputs=input_tensor, outputs=layer_out)
@@ -64,10 +64,12 @@ import numpy as np
 from astropy.io import fits
 import os 
 
-unpacked_path = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted"
+# unpacked_path = "/mnt/c/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted"
+unpacked_path = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted"
+
 
 # ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 3  # change this to test with more or fewer folders
+NUM_FOLDERS = 6  # change this to test with more or fewer folders
 
 N_PIXELS = 4544
 N_PER_FOLDER = 1000
@@ -155,7 +157,8 @@ print(f"\nDone! Loaded {len(all_spectra)} spectra total.")
 # Create y
 
 from astropy.table import Table
-tablepath = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
+# tablepath = "/mnt/c/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
+tablepath = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
 
 
 tab = Table.read(tablepath) #Read content of table for labels
@@ -184,7 +187,7 @@ x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2)
 
 #Compile the model (make sure to do this in a seperate cell in colab or wherever we run this
 model_builder = StarNet2026()
-model = model_builder.model(X.shape[1]) #Uses the length of the wavelength 
+model = model_builder.model(X.shape[1], units=4) #Uses the length of the wavelength 
 
 model.compile(
     optimizer=model_builder.optimizer,
@@ -236,6 +239,6 @@ for ax, true, pred, label in zip(
 
 plt.suptitle('Predicted vs True (validation set)', fontsize=13)
 plt.tight_layout()
-plt.show()
+plt.savefig("/mnt/c/Users/Stefan/Desktop/plot.png")
 
 
