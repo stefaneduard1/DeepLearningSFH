@@ -4,7 +4,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
 import keras.ops as k
 
-#Loss function
+# Loss function
 def custom(y_true, y_pred):
 
     loss = 0
@@ -20,10 +20,10 @@ def custom(y_true, y_pred):
 
     return k.mean(loss)
 
-#Not sure what this is? If  this is different 
+# Not sure what this is? If  this is different 
 class StarNet2026:
-    #Note in the paper they used filter length 20 and max pooling length of 10
-    #This version if for the custom loss fucntion
+    # Note in the paper they used filter length 20 and max pooling length of 10
+    # This version is for the custom loss fucntion
     def __init__(self):
         self._model_type = 'StarNet2017CNN'
         self.lr = 0.0007
@@ -67,7 +67,7 @@ import os
 unpacked_path = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 
 # ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 25  # change this to test with more or fewer folders
+NUM_FOLDERS = 3  # change this to test with more or fewer folders
 
 N_PIXELS = 4544
 N_PER_FOLDER = 1000
@@ -82,6 +82,7 @@ print(f"Pre-allocating arrays for {total_files} spectra of {N_PIXELS} pixels..."
 
 all_spectra = []
 all_noise = []
+all_ = []
 
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -139,30 +140,102 @@ for folder in bin_folders:
     all_spectra.append(bin_spectra)
     all_noise.append(bin_noise)
 
-all_spectra = np.concatenate(all_spectra, axis=0)
-all_noise_list = np.concatenate(all_noise, axis=0)
+all_spectra = np.array(np.concatenate(all_spectra, axis=0))
+all_noise_list = np.array(np.concatenate(all_noise, axis=0))
 
 print(f"\nDone! Loaded {len(all_spectra)} spectra total.")
 
 X = np.stack([all_spectra, all_noise_list], axis=-1) #Convert it to the spectra + noise (1000, N_wavelengths, 2) shape
 
 print("Spectra shape:", all_spectra.shape)
-print("Noise shape:", all_noise.shape)
+print("Noise shape:", all_noise_list.shape)
  
 print(f"\nDone! Loaded {len(all_spectra)} spectra total.")
 
-# import pandas as pd
+# Create y
 
-# # peek at the first spectrum
-# df = pd.DataFrame({
-#     "spec": spectra[0],
-#     "noise": noise_list[0]
-# })p
-
-# print(df.head(20))
-# print(f"\nShape: {df.shape}")
-# print(f"\nBasic stats:\n{df.describe()}")
+from astropy.table import Table
+tablepath = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
 
 
+tab = Table.read(tablepath) #Read content of table for labels
+#Give labels to values (this is just an example for the one bin (have to generalize if we want to do more)
+fname_to_idx = {row['fname']: i for i, row in enumerate(tab)}
+
+labels = []
+num_spectra = NUM_FOLDERS * 1000
+
+for i in range(num_spectra):
+    fname = f"spec-{i}.fits"
+    row = tab[fname_to_idx[fname]]
+    labels.append([
+        row["logage_in"],
+        row["metal_in"],
+        row["ebv_in"],
+        row["ML_r"]
+    ])
+
+y = np.array(labels)
+
+#Split into test and validation data 
+from sklearn.model_selection import train_test_split
+
+x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2)
+
+#Compile the model (make sure to do this in a seperate cell in colab or wherever we run this
+model_builder = StarNet2026()
+model = model_builder.model(X.shape[1]) #Uses the length of the wavelength 
+
+model.compile(
+    optimizer=model_builder.optimizer,
+    loss="mse"
+)
+history = model.fit(
+    x_train,
+    y_train,
+    validation_data=(x_val, y_val),
+    epochs=10, #Change epochs to whatever we want 
+    batch_size=32,
+    verbose=1
+)
+
+
+import matplotlib.pyplot as plt
+
+# Get predictions on validation set
+y_pred_raw = model.predict(x_val)
+
+# The model outputs 8 values: [mu_0, sigma_0, mu_1, sigma_1, ...]
+# So predicted means are at even indices
+logage_pred = y_pred_raw[:, 0]   # mu for logage_in
+metal_pred  = y_pred_raw[:, 2]   # mu for metal_in
+
+logage_true = y_val[:, 0]
+metal_true  = y_val[:, 1]
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+
+for ax, true, pred, label in zip(
+    axes,
+    [logage_true, metal_true],
+    [logage_pred, metal_pred],
+    ['logage_in', 'metal_in']
+):
+    ax.scatter(true, pred, alpha=0.3, s=5, color='steelblue')
+    
+    # 1:1 line
+    lims = [min(true.min(), pred.min()), max(true.max(), pred.max())]
+    ax.plot(lims, lims, 'r--', linewidth=1.5, label='1:1')
+    
+    # Residual stats
+    residuals = pred - true
+    ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
+    ax.set_xlabel('True')
+    ax.set_ylabel('Predicted')
+    ax.legend()
+
+plt.suptitle('Predicted vs True (validation set)', fontsize=13)
+plt.tight_layout()
+plt.show()
 
 

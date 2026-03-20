@@ -4,7 +4,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
 import keras.ops as k
 
-#Loss function
+# Loss function
 def custom(y_true, y_pred):
 
     loss = 0
