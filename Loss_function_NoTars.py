@@ -67,7 +67,7 @@ import os
 unpacked_path = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 
 # ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 20  # change this to test with more or fewer folders
+NUM_FOLDERS = 25  # change this to test with more or fewer folders
 
 N_PIXELS = 4544
 N_PER_FOLDER = 1000
@@ -135,6 +135,7 @@ for folder in bin_folders:
             bin_spectra[i] = hdu[1].data["spec"]
             bin_noise[i] = np.sqrt(hdu[1].data["var"])
 
+    print("loaded, appending...")
     all_spectra.append(bin_spectra)
     all_noise.append(bin_noise)
 
@@ -156,7 +157,7 @@ print(f"\nDone! Loaded {len(all_spectra)} spectra total.")
 # df = pd.DataFrame({
 #     "spec": spectra[0],
 #     "noise": noise_list[0]
-# })
+# })p
 
 # print(df.head(20))
 # print(f"\nShape: {df.shape}")
