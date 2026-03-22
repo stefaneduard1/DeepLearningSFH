@@ -14,7 +14,7 @@ def custom(y_true, y_pred):
         y_t = y_true[:, i]
         y_p = y_pred[:, 2*i]
 
-        sigma = k.softplus(y_pred[:, 2*i+1]) + 1e-3
+        sigma = k.softplus(y_pred[:, 2*i+1]) + 1e-2
 
         loss += ((y_t - y_p)/sigma)**2 + 2*k.log(sigma)
 
@@ -26,7 +26,7 @@ class StarNet2026:
     # This version is for the custom loss fucntion
     def __init__(self):
         self._model_type = 'StarNet2017CNN'
-        self.lr = 0.0007
+        self.lr = 0.0001
         self.initializer = 'he_normal'
         self.activation = 'relu'
         self.num_filters = [4, 16]
@@ -69,7 +69,9 @@ unpacked_path = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 
 
 # ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 6  # change this to test with more or fewer folders
+NUM_FOLDERS = 90  # change this to test with more or fewer folders
+
+
 
 N_PIXELS = 4544
 N_PER_FOLDER = 1000
@@ -141,6 +143,7 @@ for folder in bin_folders:
     print("loaded, appending...")
     all_spectra.append(bin_spectra)
     all_noise.append(bin_noise)
+    print(len(all_spectra), len(all_noise))
 
 all_spectra = np.array(np.concatenate(all_spectra, axis=0))
 all_noise_list = np.array(np.concatenate(all_noise, axis=0))
@@ -187,20 +190,22 @@ x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2)
 
 #Compile the model (make sure to do this in a seperate cell in colab or wherever we run this
 model_builder = StarNet2026()
-model = model_builder.model(X.shape[1], units=4) #Uses the length of the wavelength 
+model = model_builder.model(X.shape[1], units=8) #Uses the length of the wavelength 
 
 model.compile(
     optimizer=model_builder.optimizer,
-    loss="mse"
+    loss=custom
 )
 history = model.fit(
     x_train,
     y_train,
     validation_data=(x_val, y_val),
-    epochs=10, #Change epochs to whatever we want 
+    epochs=35, #Change epochs to whatever we want 
     batch_size=32,
     verbose=1
 )
+
+model.save("/mnt/c/Users/Stefan/Desktop/starnet_model_custom.keras")
 
 
 import matplotlib.pyplot as plt
@@ -211,34 +216,91 @@ y_pred_raw = model.predict(x_val)
 # The model outputs 8 values: [mu_0, sigma_0, mu_1, sigma_1, ...]
 # So predicted means are at even indices
 logage_pred = y_pred_raw[:, 0]   # mu for logage_in
-metal_pred  = y_pred_raw[:, 2]   # mu for metal_in
+metal_pred  = y_pred_raw[:, 1]   # mu for metal_in
 
 logage_true = y_val[:, 0]
 metal_true  = y_val[:, 1]
 
-fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+# fig, axes = plt.subplots(1, 2, figsize=(12, 5))
 
-for ax, true, pred, label in zip(
-    axes,
-    [logage_true, metal_true],
-    [logage_pred, metal_pred],
-    ['logage_in', 'metal_in']
-):
-    ax.scatter(true, pred, alpha=0.3, s=5, color='steelblue')
+# for ax, true, pred, label in zip(
+#     axes,
+#     [logage_true, metal_true],
+#     [logage_pred, metal_pred],
+#     ['logage_in', 'metal_in']
+# ):
+#     ax.scatter(true, pred, alpha=0.3, s=5, color='steelblue')
     
-    # 1:1 line
-    lims = [min(true.min(), pred.min()), max(true.max(), pred.max())]
-    ax.plot(lims, lims, 'r--', linewidth=1.5, label='1:1')
+#     # 1:1 line
+#     lims = [min(true.min(), pred.min()), max(true.max(), pred.max())]
+#     ax.plot(lims, lims, 'r--', linewidth=1.5, label='1:1')
     
-    # Residual stats
+#     # Residual stats
+#     residuals = pred - true
+#     ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
+#     ax.set_xlabel('True')
+#     ax.set_ylabel('Predicted')
+#     ax.legend()
+
+# plt.suptitle('Predicted vs True (validation set)', fontsize=13)
+# plt.tight_layout()
+# plt.savefig("/mnt/c/Users/Stefan/Desktop/plot.png")
+
+
+fig, axes = plt.subplots(1, 2, figsize=(12, 5))
+axes[0].plot(history.history['loss'], label='train')
+axes[0].plot(history.history['val_loss'], label='val')
+axes[0].set_title('Loss over epochs')
+axes[0].set_xlabel('Epoch')
+axes[0].legend()
+
+axes[1].plot(history.history['loss'], label='train')
+axes[1].plot(history.history['val_loss'], label='val')
+axes[1].set_yscale('log')
+axes[1].set_title('Loss over epochs (log scale)')
+axes[1].set_xlabel('Epoch')
+axes[1].legend()
+
+plt.tight_layout()
+plt.savefig("/mnt/c/Users/Stefan/Desktop/training_curves_custom.png")
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
+for idx, (ax, col, label) in enumerate(zip(
+    axes.flat,
+    [0, 1, 2, 3],
+    ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
+)):
+    true = y_val[:, col]
+    pred = y_pred_raw[:, col]
     residuals = pred - true
+
+    ax.scatter(true, pred, alpha=0.3, s=5, color='steelblue')
+    lims = [min(true.min(), pred.min()), max(true.max(), pred.max())]
+    ax.plot(lims, lims, 'r--', linewidth=1.5)
     ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
     ax.set_xlabel('True')
     ax.set_ylabel('Predicted')
-    ax.legend()
 
 plt.suptitle('Predicted vs True (validation set)', fontsize=13)
 plt.tight_layout()
-plt.savefig("/mnt/c/Users/Stefan/Desktop/plot.png")
+plt.savefig("/mnt/c/Users/Stefan/Desktop/pred_vs_true_custom.png")
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+
+for idx, (ax, col, label) in enumerate(zip(
+    axes.flat,
+    [0, 1, 2, 3],
+    ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
+)):
+    residuals = y_pred_raw[:, col] - y_val[:, col]
+    ax.hist(residuals, bins=100, color='steelblue', edgecolor='none')
+    ax.axvline(0, color='r', linestyle='--')
+    ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
+    ax.set_xlabel('Residual (pred - true)')
+
+plt.suptitle('Residual distributions (validation set)', fontsize=13)
+plt.tight_layout()
+plt.savefig("/mnt/c/Users/Stefan/Desktop/residuals_custom.png")
 
 
