@@ -10,7 +10,7 @@ def custom(y_true, y_pred):
 
     loss = 0
 
-    for i in range(4):
+    for i in range(4): 
 
         y_t = y_true[:, i]
         y_p = y_pred[:, 2*i]

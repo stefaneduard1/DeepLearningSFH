@@ -2,7 +2,7 @@ import numpy as np
 from astropy.io import fits
 from astropy.table import Table
 
-path = "C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
+path = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
 
 # First, inspect the file structure
 with fits.open(path) as hdul:
@@ -12,6 +12,7 @@ with fits.open(path) as hdul:
 
 # Try reading as a Table
 tab = Table.read(path)
+tab = tab[:90000]
 
 print("\n--- Column names ---")
 print(tab.colnames)
