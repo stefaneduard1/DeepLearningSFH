@@ -338,7 +338,7 @@ for idx, (ax, col, pred_col, lim, label) in enumerate(zip(
     ax.plot(lims, lims, 'r--', linewidth=1.5)
     ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
     ax.set_xlabel('True')
-    ax.set_ylabel('Predicted')
+    ax.set_ylabel('Predicted') 
 
 plt.suptitle('Predicted vs True (validation set)', fontsize=13)
 plt.tight_layout()
