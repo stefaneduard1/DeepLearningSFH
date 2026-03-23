@@ -74,12 +74,12 @@ print("Done predicting! Plotting...")
 # ── Plot ──────────────────────────────────────────────────────────────────────
 labels     = ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
 true_cols  = [0, 1, 2, 3]
-pred_cols  = [0, 2, 4, 6]
-sigma_cols = [1, 3, 5, 7]
+pred_cols  = [0, 1, 2, 3]
+# sigma_cols = [1, 3, 5, 7]
 
 # Pred vs True
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-limits = [[8.65, 10.55], [-0.65, 0.25], [-0.01, 2.6], [0., 4.2]]
+limits = [[8.65, 10.55], [-0.65, 0.25], [-0.05, 2.6], [0., 4.2]]
 for ax, tc, pc, label, lim in zip(axes.flat, true_cols, pred_cols, labels, limits):
     true = all_true[:, tc]
     pred = all_preds[:, pc]

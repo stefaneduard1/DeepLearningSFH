@@ -70,7 +70,7 @@ unpacked_path = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 
 
 # ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 90  # change this to test with more or fewer folders
+NUM_FOLDERS = 5  # change this to test with more or fewer folders
 
 
 
@@ -126,19 +126,42 @@ print(f"Reading {len(bin_folders)} folder(s): {bin_folders}\n")
 # spectra = np.array(spectra)
 # noise_list = np.array(noise_list)
 
-for folder in bin_folders:
+# Create y
+
+from astropy.table import Table
+# tablepath = "/mnt/c/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
+tablepath = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
+
+fyoung_min, fyoung_max = [0., 1e-7]  # first bin
+# fyoung_min, fyong_max = [1e-7, 1e-2]  # second bin
+# fyoung_min, fyong_max = [1e-2, 1]  # third bin
+
+fulltable = Table.read(tablepath) #Read content of table for labels
+tab = fulltable[:1000*NUM_FOLDERS]
+
+fyoungs = tab['fyoung']
+
+mask = ((fyoungs >= fyoung_min) & (fyoungs <= fyoung_max)).astype(int)
+
+for index, folder in enumerate(bin_folders):
     folder_path = os.path.join(unpacked_path, folder)
     fits_files = sorted([f for f in os.listdir(folder_path) if f.endswith(".fits")])
     print(f"  [{folder}] Loading...")
 
-    bin_spectra = np.empty((N_PER_FOLDER, N_PIXELS), dtype=np.float32)
-    bin_noise = np.empty((N_PER_FOLDER, N_PIXELS), dtype=np.float32)
+    slicedmask = mask[index*1000:(index+1)*1000]
 
+    bin_spectra = np.empty((np.sum(slicedmask), N_PIXELS), dtype=np.float32)
+    bin_noise = np.empty((np.sum(slicedmask), N_PIXELS), dtype=np.float32)
+
+    j = 0
     for i, filename in enumerate(fits_files):
-        filepath = os.path.join(folder_path, filename)
-        with fits.open(filepath, memmap=False) as hdu:
-            bin_spectra[i] = hdu[1].data["spec"]
-            bin_noise[i] = np.sqrt(hdu[1].data["var"])
+        if slicedmask[i]:
+            filepath = os.path.join(folder_path, filename)
+            with fits.open(filepath, memmap=False) as hdu:
+                bin_spectra[i-j] = hdu[1].data["spec"]
+                bin_noise[i-j] = np.sqrt(hdu[1].data["var"])
+        else:
+            j += 1
 
     print("loaded, appending...")
     all_spectra.append(bin_spectra)
@@ -157,14 +180,10 @@ print("Noise shape:", all_noise_list.shape)
  
 print(f"\nDone! Loaded {len(all_spectra)} spectra total.")
 
-# Create y
-
-from astropy.table import Table
-# tablepath = "/mnt/c/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
-tablepath = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
 
 
-tab = Table.read(tablepath) #Read content of table for labels
+
+
 #Give labels to values (this is just an example for the one bin (have to generalize if we want to do more)
 fname_to_idx = {row['fname']: i for i, row in enumerate(tab)}
 
@@ -181,7 +200,9 @@ for i in range(num_spectra):
         row["ML_r"]
     ])
 
-y = np.array(labels)
+labels = np.array(labels)
+
+y = labels[np.where(mask)]
 
 #Split into test and validation data 
 from sklearn.model_selection import train_test_split
@@ -190,11 +211,11 @@ x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2)
 
 #Compile the model (make sure to do this in a seperate cell in colab or wherever we run this
 model_builder = StarNet2026()
-model = model_builder.model(X.shape[1], units=8) #Uses the length of the wavelength 
+model = model_builder.model(X.shape[1], units=4) #Uses the length of the wavelength 
 
 model.compile(
     optimizer=model_builder.optimizer,
-    loss=custom
+    loss="mse"
 )
 
 callbacks = [
@@ -283,7 +304,7 @@ fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 for idx, (ax, col, pred_col, label) in enumerate(zip(
     axes.flat,
     [0, 1, 2, 3],      # true cols
-    [0, 2, 4, 6],      # pred mean cols
+    [0, 1, 2, 3],      # pred mean cols
     ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
 )):
     true = y_val[:, col]
@@ -300,6 +321,28 @@ for idx, (ax, col, pred_col, label) in enumerate(zip(
 plt.suptitle('Predicted vs True (validation set)', fontsize=13)
 plt.tight_layout()
 plt.savefig("/mnt/c/Users/Stefan/Desktop/pred_vs_true_custom.png")
+
+for idx, (ax, col, pred_col, lim, label) in enumerate(zip(
+    axes.flat,
+    [0, 1, 2, 3],      # true cols
+    [0, 1, 2, 3],      # pred mean cols
+    [[8.65, 10.55], [-0.65, 0.25], [-0.05, 2.6], [0., 4.2]],
+    ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
+)):
+    true = y_val[:, col]
+    pred = y_pred_raw[:, pred_col]
+    residuals = pred - true
+
+    ax.scatter(true, pred, alpha=0.3, s=5, color='steelblue')
+    lims = lim
+    ax.plot(lims, lims, 'r--', linewidth=1.5)
+    ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
+    ax.set_xlabel('True')
+    ax.set_ylabel('Predicted') 
+
+plt.suptitle('Predicted vs True (validation set)', fontsize=13)
+plt.tight_layout()
+plt.savefig("/mnt/c/Users/Stefan/Desktop/pred_vs_true_custom_limits.png")
 
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
