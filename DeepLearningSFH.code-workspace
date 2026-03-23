@@ -1,7 +1,14 @@
 {
-    "folders": [
-        {
-            "path": "."
-        }
-    ]
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "../../Data"
+		},
+		{
+			"path": "../../../../master thesis"
+		}
+	],
+	"settings": {}
 }

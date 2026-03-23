@@ -4,7 +4,7 @@ from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
 import keras.ops as k
 
-#Loss function
+# Loss function
 def custom(y_true, y_pred):
 
     loss = 0
@@ -63,28 +63,34 @@ class StarNet2026:
 import tarfile
 import numpy as np
 from astropy.io import fits
+import os 
 
-tar_path = "bin000.tar.gz"
+print(os.getcwd())
+
+
+
+tar_path = "C:\\Users\\Stefan\\Desktop\\Deep Learning\\Project\\Data\\MockSpectra-Woo2024\\v1_training_spectra\\bin000.tar.gz"
 
 spectra = []
 noise_list = []
 
-with tarfile.open(tar_path, "r:gz") as tar:
+with tarfile.open(tar_path, "r") as tar:
 
     members = tar.getmembers()
-
-    for member in members:
-
+    
+    for index, member in enumerate(members):
+        # if not index%100:
+        print(index)
         file = tar.extractfile(member)
-        hdu = fits.open(file)
+        with fits.open(file) as hdu:
 
-        spec = hdu[1].data["spec"]
-        var = hdu[1].data["var"]
+            spec = hdu[1].data["spec"]
+            var = hdu[1].data["var"]
 
-        noise = np.sqrt(var)
+            # noise = np.sqrt(var)
 
-        spectra.append(spec)
-        noise_list.append(noise)
+            # spectra.append(spec)
+            # noise_list.append(noise)
 
 spectra = np.array(spectra)
 noise = np.array(noise_list)
@@ -95,7 +101,9 @@ print("Spectra shape:", spectra.shape)
 print("Noise shape:", noise.shape)
 
 from astropy.table import Table
-tab = Table.read("/content/datatab_Woo2024_training.fits.gz")
+tab = Table.read("C:/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra/datatab_Woo2024_training.fits.gz")
+
+
 
 print(tab.colnames)
 

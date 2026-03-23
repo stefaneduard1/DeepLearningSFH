@@ -17,9 +17,6 @@ tab = tab[:90000]
 print("\n--- Column names ---")
 print(tab.colnames)
 
-print("HERE!!!!")
-print(tab['fname'])
-
 print("\n--- Shape / length ---")
 print(f"Rows: {len(tab)}")
 
@@ -29,7 +26,6 @@ print(tab[:5])
 import matplotlib.pyplot as plt
 
 fyoung = tab['fyoung']
-print("HELLO HELLO",fyoung[fyoung > 0].min())
 
 # plt.figure(figsize=(8, 5))
 # plt.hist(fyoung, bins=1000, color='steelblue', edgecolor='none', alpha=0.8)
