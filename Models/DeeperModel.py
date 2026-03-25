@@ -15,6 +15,7 @@
   #If underfitting we might want to try just batchnorm or dropout?
 
   #If no improvement, the data preprocessing might be the problem? Though not sure how since they already did that pretty extensively 
+  #Also if we have time skip connection???
 from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Input, GlobalAveragePooling1D, BatchNormalization, Activation, Dropout
 from tensorflow.keras.models import Model
 
