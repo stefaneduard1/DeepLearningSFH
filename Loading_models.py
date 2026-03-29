@@ -108,14 +108,14 @@ plt.suptitle('Residual distributions', fontsize=13)
 plt.tight_layout()
 plt.savefig("/mnt/c/Users/Stefan/Desktop/residuals_custom.png")
 
-# Sigmas
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-for ax, sc, label in zip(axes.flat, sigma_cols, labels):
-    ax.hist(all_preds[:, sc], bins=100, color='coral', edgecolor='none')
-    ax.set_title(f'{label} — predicted σ')
-    ax.set_xlabel('σ')
-plt.suptitle('Predicted uncertainties', fontsize=13)
-plt.tight_layout()
-plt.savefig("/mnt/c/Users/Stefan/Desktop/sigmas_custom.png")
+# # Sigmas
+# fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+# for ax, sc, label in zip(axes.flat, sigma_cols, labels):
+#     ax.hist(all_preds[:, sc], bins=100, color='coral', edgecolor='none')
+#     ax.set_title(f'{label} — predicted σ')
+#     ax.set_xlabel('σ')
+# plt.suptitle('Predicted uncertainties', fontsize=13)
+# plt.tight_layout()
+# plt.savefig("/mnt/c/Users/Stefan/Desktop/sigmas_custom.png")
 
 print("All plots saved to Desktop!")

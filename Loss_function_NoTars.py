@@ -1,4 +1,4 @@
-from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Input
+from tensorflow.keras.layers import Conv1D, MaxPooling1D, Flatten, Dense, Input, Concatenate, GlobalAveragePooling1D, BatchNormalization, Activation, Dropout
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.regularizers import l2
@@ -17,7 +17,7 @@ def custom(y_true, y_pred):
 
         sigma = k.softplus(y_pred[:, 2*i+1]) + 0.1
 
-        loss += ((y_t - y_p)/sigma)**2 + 2*k.log(sigma)
+        loss += ((y_t - y_p)/sigma)**2 + 2*k.log(sigma) + 0.1 * sigma
 
     return k.mean(loss)
 
@@ -60,6 +60,9 @@ class StarNet2026:
 
         return model
 
+# Importing from folder hierarchy like a pro gamer
+
+from Models.DeeperModel import StarNet2017_DeeperNetwork
 
 import numpy as np
 from astropy.io import fits
@@ -72,13 +75,11 @@ unpacked_path = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 # ── Control how many bin folders to read ──────────────────────────────────────
 NUM_FOLDERS = 90  # change this to test with more or fewer folders
 
-
-
 N_PIXELS = 4544
 N_PER_FOLDER = 1000
 total_files = NUM_FOLDERS * N_PER_FOLDER
 
-print(f"Pre-allocating arrays for {total_files} spectra of {N_PIXELS} pixels...")
+# print(f"Pre-allocating arrays for {total_files} spectra of {N_PIXELS} pixels...")
 
 # Pre-allocate arrays
 
@@ -189,12 +190,12 @@ from sklearn.model_selection import train_test_split
 x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2)
 
 #Compile the model (make sure to do this in a seperate cell in colab or wherever we run this
-model_builder = StarNet2026()
-model = model_builder.model(X.shape[1], units=8) #Uses the length of the wavelength 
+model_builder = StarNet2017_DeeperNetwork()
+model = model_builder.model(X.shape[1]) #Uses the length of the wavelength 
 
 model.compile(
     optimizer=model_builder.optimizer,
-    loss=custom
+    loss="mse"
 )
 
 callbacks = [
@@ -283,7 +284,7 @@ fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 for idx, (ax, col, pred_col, label) in enumerate(zip(
     axes.flat,
     [0, 1, 2, 3],      # true cols
-    [0, 2, 4, 6],      # pred mean cols
+    [0, 1, 2, 3],      # pred mean cols
     ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
 )):
     true = y_val[:, col]
