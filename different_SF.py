@@ -133,8 +133,8 @@ from astropy.table import Table
 tablepath = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
 
 fyoung_min, fyoung_max = [0., 1e-7]  # first bin
-# fyoung_min, fyong_max = [1e-7, 1e-2]  # second bin
-# fyoung_min, fyong_max = [1e-2, 1]  # third bin
+# fyoung_min, fyoung_max = [1e-7, 1e-2]  # second bin
+# fyoung_min, fyoung_max = [1e-2, 1]  # third bin
 
 fulltable = Table.read(tablepath) #Read content of table for labels
 tab = fulltable[:1000*NUM_FOLDERS]
