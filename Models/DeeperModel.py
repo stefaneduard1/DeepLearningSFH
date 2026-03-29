@@ -28,7 +28,7 @@ class StarNet2017_DeeperNetwork:
         self.lr = 0.0003
         self.initializer = 'he_normal'
         self.activation = 'relu'
-        self.num_filters = [4, 16, 32, 128]
+        self.num_filters = [4, 16, 32, 64]
         self.filter_len = [20, 5]
         self.pool_length = 5
         self.num_hidden = [256, 128]

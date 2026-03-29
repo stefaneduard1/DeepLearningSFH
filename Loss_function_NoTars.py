@@ -212,7 +212,7 @@ history = model.fit(
     y_train,
     validation_data=(x_val, y_val),
     epochs=35, #Change epochs to whatever we want 
-    batch_size=32,
+    batch_size=128,  # Larger batch size, for overfitting reasons?
     verbose=1
 )
 
