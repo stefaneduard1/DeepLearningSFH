@@ -9,6 +9,9 @@ import keras.ops as k
 def custom(y_true, y_pred):
 
     loss = 0
+    # Parameters are log age, metallicity, color, and mass/light ratio.
+    # We want to weight metallicity higher. 
+    weights = [1., 2., 1., 1.]
 
     for i in range(4):
 
@@ -16,8 +19,9 @@ def custom(y_true, y_pred):
         y_p = y_pred[:, 2*i]
 
         sigma = k.softplus(y_pred[:, 2*i+1]) + 0.1
-
-        loss += ((y_t - y_p)/sigma)**2 + 2*k.log(sigma) + 0.1 * sigma
+        
+        target_loss = ((y_t - y_p)/sigma)**2 + 2*k.log(sigma) + 0.1 * sigma
+        loss += weights[i] * target_loss
 
     return k.mean(loss)
 
@@ -73,7 +77,7 @@ unpacked_path = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 
 
 # ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 5  # change this to test with more or fewer folders
+NUM_FOLDERS = 90  # change this to test with more or fewer folders
 
 N_PIXELS = 4544
 N_PER_FOLDER = 1000
@@ -126,20 +130,6 @@ print(f"Reading {len(bin_folders)} folder(s): {bin_folders}\n")
 
 # spectra = np.array(spectra)
 # noise_list = np.array(noise_list)
-
-from astropy.table import Table
-# tablepath = "/mnt/c/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
-tablepath = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
-
-fyoung_min, fyoung_max = [0., 1e-7]  # first bin
-# fyoung_min, fyong_max = [1e-7, 1e-2]  # second bin
-# fyoung_min, fyong_max = [1e-2, 1]  # third bin
-
-fulltable = Table.read(tablepath) #Read content of table for labels
-tab = fulltable[:1000*NUM_FOLDERS]# ── Control how many bin folders to read ──────────────────────────────────────
-NUM_FOLDERS = 90  # change this to test with more or fewer folders
-
-
 
 N_PIXELS = 4544
 N_PER_FOLDER = 1000
@@ -199,7 +189,7 @@ from astropy.table import Table
 # tablepath = "/mnt/c/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
 tablepath = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
 
-fyoung_min, fyoung_max = [0., 1e-7]  # first bin
+fyoung_min, fyoung_max = [0., 1]  # first bin
 # fyoung_min, fyoung_max = [1e-7, 1e-2]  # second bin
 # fyoung_min, fyoung_max = [1e-2, 1]  # third bin
 
@@ -279,11 +269,11 @@ x_train, x_val, y_train, y_val = train_test_split(X, y, test_size=0.2)
 
 #Compile the model (make sure to do this in a seperate cell in colab or wherever we run this
 model_builder = StarNet2017_DeeperNetwork()
-model = model_builder.model(X.shape[1]) #Uses the length of the wavelength 
+model = model_builder.model(X.shape[1], units=8) #Uses the length of the wavelength 
 
 model.compile(
     optimizer=model_builder.optimizer,
-    loss="mse"
+    loss=custom
 )
 
 callbacks = [
@@ -368,43 +358,69 @@ plt.tight_layout()
 plt.savefig("/mnt/c/Users/Stefan/Desktop/training_curves_custom.png")
 
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-
-for idx, (ax, col, pred_col, label) in enumerate(zip(
+limits = [[8.65, 10.55], [-0.65, 0.25], [-0.05, 2.6], [0., 4.2]]
+for idx, (ax, col, pred_col, label, lim) in enumerate(zip(
     axes.flat,
     [0, 1, 2, 3],      # true cols
-    [0, 1, 2, 3],      # pred mean cols
-    ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
+    [0, 2, 4, 6],      # pred mean cols
+    ['logage_in', 'metal_in', 'ebv_in', 'ML_r'],
+    limits
 )):
     true = y_val[:, col]
     pred = y_pred_raw[:, pred_col]
     residuals = pred - true
 
     ax.scatter(true, pred, alpha=0.3, s=5, color='steelblue')
-    lims = [min(true.min(), pred.min()), max(true.max(), pred.max())]
-    ax.plot(lims, lims, 'r--', linewidth=1.5)
+    ax.plot(lim, lim, 'r--', linewidth=1.5)
     ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
     ax.set_xlabel('True')
     ax.set_ylabel('Predicted')
+    ax.set_xlim(lim)
+    ax.set_ylim(lim)
 
 plt.suptitle('Predicted vs True (validation set)', fontsize=13)
 plt.tight_layout()
 plt.savefig("/mnt/c/Users/Stefan/Desktop/pred_vs_true_custom.png")
 
-fig, axes = plt.subplots(2, 2, figsize=(12, 10))
 
-for idx, (ax, col, label) in enumerate(zip(
+
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+limits = [[-2, 2], [-1, 1], [-0.5, 0.5], [-2.5, 2.5]]
+for idx, (ax, col, pred_col, label, lim) in enumerate(zip(
     axes.flat,
-    [0, 1, 2, 3],
-    ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
+    [0, 1, 2, 3],  # true cols
+    [0, 2, 4, 6],  # pred cols
+    ['logage_in', 'metal_in', 'ebv_in', 'ML_r'],
+    limits
 )):
-    residuals = y_pred_raw[:, col] - y_val[:, col]
-    ax.hist(residuals, bins=100, color='steelblue', edgecolor='none')
+    bins = np.linspace(lim[0], lim[1], 100)
+    true = y_val[:, col]
+    pred = y_pred_raw[:, pred_col]
+    residuals = pred - true
+    ax.hist(residuals, bins=bins, color='steelblue', edgecolor='none')
     ax.axvline(0, color='r', linestyle='--')
     ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
     ax.set_xlabel('Residual (pred - true)')
+    ax.set_xlim(lim)
 
 plt.suptitle('Residual distributions (validation set)', fontsize=13)
 plt.tight_layout()
 plt.savefig("/mnt/c/Users/Stefan/Desktop/residuals_custom.png")
 
 
+limits = [[-10, 10], [-10, 10], [-20, 20], [-5, 5]]
+
+# Sigmas
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+for ax, sc, lim, label in zip(axes.flat, [1,3,5,7], limits, ['logage_in', 'metal_in', 'ebv_in', 'ML_r']):
+    bins = np.linspace(lim[0], lim[1], 100)
+    ax.hist(y_pred_raw[:, sc], bins=bins, color='coral', edgecolor='none')
+    ax.set_title(f'{label} — predicted σ')
+    ax.set_xlabel('σ')
+    ax.set_xlim(lim)
+    # ax.set_xscale('log')
+    # ax.set_xlim(1e-3, 1e+3)
+    # ax.set_yscale('log')
+plt.suptitle('Predicted uncertainties', fontsize=13)
+plt.tight_layout()
+plt.savefig("/mnt/c/Users/Stefan/Desktop/sigmas_custom.png")

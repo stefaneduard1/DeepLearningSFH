@@ -28,7 +28,7 @@ class StarNet2017_DeeperNetwork:
         self.lr = 0.0003
         self.initializer = 'he_normal'
         self.activation = 'relu'
-        self.num_filters = [4, 16, 32, 64]
+        self.num_filters = [4, 8, 16, 32]
         self.filter_len = [20, 5]
         self.pool_length = 5
         self.num_hidden = [256, 128]
@@ -36,7 +36,7 @@ class StarNet2017_DeeperNetwork:
         self.optimizer = Adam(learning_rate=self.lr)
         self.last_layer_activation = 'linear'
 
-    def model(self, N_wavelength_pixels):
+    def model(self, N_wavelength_pixels, units=4):
         input_tensor = Input(shape=(N_wavelength_pixels, 2)) #2 inputs flux and noise spectrum
 
         #Block 1
@@ -91,7 +91,7 @@ class StarNet2017_DeeperNetwork:
                         kernel_regularizer=l2(self.l2), bias_regularizer=l2(self.l2))(layer_3_drop)
         layer_4_drop = Dropout(0.15)(layer_4)
 
-        layer_out = Dense(units=4, kernel_initializer=self.initializer,
+        layer_out = Dense(units=units, kernel_initializer=self.initializer,
                           activation=self.last_layer_activation, name='output')(layer_4_drop)
 
         model = Model(inputs=input_tensor, outputs=layer_out)
