@@ -41,22 +41,43 @@ bin_folders = sorted([
 all_preds = []
 all_true  = []
 
-for folder in bin_folders:
+from astropy.table import Table
+# tablepath = "/mnt/c/Users/Stefan/Desktop/Deep Learning/Project/Data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab.fits"
+tablepath = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
+
+fyoung_min, fyoung_max = [0., 1e-7]  # first bin
+# fyoung_min, fyoung_max = [1e-7, 1e-2]  # second bin
+# fyoung_min, fyoung_max = [1e-2, 1]  # third bin
+
+fulltable = Table.read(tablepath) #Read content of table for labels
+tab = fulltable[:1000*NUM_FOLDERS]
+
+fyoungs = tab['fyoung']
+
+mask = ((fyoungs >= fyoung_min) & (fyoungs <= fyoung_max)).astype(int)
+
+for index, folder in enumerate(bin_folders):
     print(f"Predicting [{folder}]...")
     folder_path = os.path.join(unpacked_path, folder)
     fits_files  = sorted([f for f in os.listdir(folder_path) if f.endswith(".fits")])
 
-    bin_spectra = np.empty((N_PER_FOLDER, N_PIXELS), dtype=np.float32)
-    bin_noise   = np.empty((N_PER_FOLDER, N_PIXELS), dtype=np.float32)
+    slicedmask = mask[index*1000:(index+1)*1000]
+
+    bin_spectra = np.empty((np.sum(slicedmask), N_PIXELS), dtype=np.float32)
+    bin_noise   = np.empty((np.sum(slicedmask), N_PIXELS), dtype=np.float32)
     bin_labels  = []
 
+    j = 0
     for i, filename in enumerate(fits_files):
-        filepath = os.path.join(folder_path, filename)
-        with fits.open(filepath, memmap=False) as hdu:
-            bin_spectra[i] = hdu[1].data["spec"]
-            bin_noise[i]   = np.sqrt(hdu[1].data["var"])
-        row = tab[fname_to_idx[filename]]
-        bin_labels.append([row["logage_in"], row["metal_in"], row["ebv_in"], row["ML_r"]])
+        if slicedmask[i]:
+            filepath = os.path.join(folder_path, filename)
+            with fits.open(filepath, memmap=False) as hdu:
+                bin_spectra[i-j] = hdu[1].data["spec"]
+                bin_noise[i-j]   = np.sqrt(hdu[1].data["var"])
+            row = tab[fname_to_idx[filename]]
+            bin_labels.append([row["logage_in"], row["metal_in"], row["ebv_in"], row["ML_r"]])
+        else:
+            j += 1
 
     X_bin = np.stack([bin_spectra, bin_noise], axis=-1)
     preds = model.predict(X_bin, verbose=0)
@@ -96,24 +117,38 @@ plt.suptitle('Predicted vs True', fontsize=13)
 plt.tight_layout()
 plt.savefig("/mnt/c/Users/Stefan/Desktop/pred_vs_true_custom.png")
 
+limits = [[-2, 2], [-1, 1], [-0.5, 0.5], [-2.5, 2.5]]
+
 # Residuals
 fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-for ax, tc, pc, label in zip(axes.flat, true_cols, pred_cols, labels):
+for ax, tc, pc, lim, label in zip(axes.flat, true_cols, pred_cols, limits, labels):
+    bins = np.linspace(lim[0], lim[1], 100)
     residuals = all_preds[:, pc] - all_true[:, tc]
-    ax.hist(residuals, bins=100, color='steelblue', edgecolor='none')
+    ax.hist(residuals, bins=bins, color='steelblue', edgecolor='none')
     ax.axvline(0, color='r', linestyle='--')
     ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
     ax.set_xlabel('Residual (pred - true)')
+    ax.set_xlim(lim)
+    # ax.set_xscale('log')
+    # ax.set_xlim(1e-3, 1e+3)
+    # ax.set_yscale('log')
 plt.suptitle('Residual distributions', fontsize=13)
 plt.tight_layout()
 plt.savefig("/mnt/c/Users/Stefan/Desktop/residuals_custom.png")
 
+limits = [[-10, 10], [-10, 10], [-20, 20], [-5, 5]]
+
 # # Sigmas
 # fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-# for ax, sc, label in zip(axes.flat, sigma_cols, labels):
-#     ax.hist(all_preds[:, sc], bins=100, color='coral', edgecolor='none')
+# for ax, sc, lim, label in zip(axes.flat, sigma_cols, limits, labels):
+#     bins = np.linspace(lim[0], lim[1], 100)
+#     ax.hist(all_preds[:, sc], bins=bins, color='coral', edgecolor='none')
 #     ax.set_title(f'{label} — predicted σ')
 #     ax.set_xlabel('σ')
+#     ax.set_xlim(lim)
+#     # ax.set_xscale('log')
+#     # ax.set_xlim(1e-3, 1e+3)
+#     # ax.set_yscale('log')
 # plt.suptitle('Predicted uncertainties', fontsize=13)
 # plt.tight_layout()
 # plt.savefig("/mnt/c/Users/Stefan/Desktop/sigmas_custom.png")
