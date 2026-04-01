@@ -276,22 +276,13 @@ model.compile(
     loss=custom
 )
 
-callbacks = [
-    ModelCheckpoint(
-        "/mnt/c/Users/Stefan/Desktop/starnet_best_custom.keras",
-        monitor='val_loss',
-        save_best_only=True,
-        verbose=1
-    )
-]
-
 history = model.fit(
     x_train,
     y_train,
     validation_data=(x_val, y_val),
     epochs=100, #Change epochs to whatever we want 
-    batch_size=128,  # Larger batch size, for overfitting reasons?
-    validation_batch_size=256,  # smoother validation curve, potentially?
+    batch_size=32,  # Larger batch size, for overfitting reasons?
+    validation_batch_size=32,  # smoother validation curve, potentially?
     verbose=1
 )
 
