@@ -11,7 +11,7 @@ def custom(y_true, y_pred):
     loss = 0
     # Parameters are log age, metallicity, color, and mass/light ratio.
     # We want to weight metallicity higher. 
-    weights = [1., 2., 1., 1.]
+    weights = [1., 3., 1., 1.]
 
     for i in range(4):
 
@@ -289,8 +289,9 @@ history = model.fit(
     x_train,
     y_train,
     validation_data=(x_val, y_val),
-    epochs=35, #Change epochs to whatever we want 
+    epochs=100, #Change epochs to whatever we want 
     batch_size=128,  # Larger batch size, for overfitting reasons?
+    validation_batch_size=256,  # smoother validation curve, potentially?
     verbose=1
 )
 

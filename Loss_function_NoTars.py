@@ -15,7 +15,7 @@ def custom(y_true, y_pred):
         y_t = y_true[:, i]
         y_p = y_pred[:, 2*i]
 
-        sigma = k.softplus(y_pred[:, 2*i+1]) + 0.1
+        sigma = k.softplus(y_pred[:, 2*i+1]) + 0.01
 
         loss += ((y_t - y_p)/sigma)**2 + 2*k.log(sigma) + 0.1 * sigma
 
