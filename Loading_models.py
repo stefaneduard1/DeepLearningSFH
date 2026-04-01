@@ -8,16 +8,26 @@ import keras.ops as k
 
 # ── Custom loss ───────────────────────────────────────────────────────────────
 def custom(y_true, y_pred):
+
     loss = 0
+    # Parameters are log age, metallicity, color, and mass/light ratio.
+    # We want to weight metallicity higher. 
+    weights = [1., 3., 1., 1.]
+
     for i in range(4):
+
         y_t = y_true[:, i]
         y_p = y_pred[:, 2*i]
+
         sigma = k.softplus(y_pred[:, 2*i+1]) + 0.1
-        loss += ((y_t - y_p)/sigma)**2 + 2*k.log(sigma)
+        
+        target_loss = ((y_t - y_p)/sigma)**2 + 2*k.log(sigma) + 0.1 * sigma
+        loss += weights[i] * target_loss
+
     return k.mean(loss)
 
 # ── Config ────────────────────────────────────────────────────────────────────
-model_path    = "/mnt/c/Users/Stefan/Desktop/starnet_model.keras"
+model_path    = "/mnt/c/Users/Stefan/Desktop/starnet_model_custom.keras"
 unpacked_path = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted"
 tablepath     = "/root/data/MockSpectra-Woo2024/v1_training_spectra_extracted/datatab_Woo2024_training.fits"
 NUM_FOLDERS   = 90
@@ -95,7 +105,7 @@ print("Done predicting! Plotting...")
 # ── Plot ──────────────────────────────────────────────────────────────────────
 labels     = ['logage_in', 'metal_in', 'ebv_in', 'ML_r']
 true_cols  = [0, 1, 2, 3]
-pred_cols  = [0, 1, 2, 3]
+pred_cols  = [0, 2, 4, 6]
 # sigma_cols = [1, 3, 5, 7]
 
 # Pred vs True
@@ -152,5 +162,23 @@ limits = [[-10, 10], [-10, 10], [-20, 20], [-5, 5]]
 # plt.suptitle('Predicted uncertainties', fontsize=13)
 # plt.tight_layout()
 # plt.savefig("/mnt/c/Users/Stefan/Desktop/sigmas_custom.png")
+
+# Residuals vs True
+fig, axes = plt.subplots(2, 2, figsize=(12, 10))
+limits_true = [[8.65, 10.55], [-0.65, 0.25], [-0.05, 2.6], [0., 4.2]]
+limits_res  = [[-0.5, 0.5], [-0.5, 0.5], [-0.5, 0.5], [-0.5, 0.5]]
+for ax, tc, pc, lim_t, lim_r, label in zip(axes.flat, true_cols, pred_cols, limits_true, limits_res, labels):
+    true      = all_true[:, tc]
+    residuals = all_preds[:, pc] - true
+    ax.scatter(true, residuals, alpha=0.3, s=5, color='steelblue')
+    ax.axhline(0, color='r', linestyle='--', linewidth=1.5)
+    ax.set_xlim(lim_t)
+    ax.set_ylim(lim_r)
+    ax.set_title(f'{label}\nbias={residuals.mean():.3f}, std={residuals.std():.3f}')
+    ax.set_xlabel('True')
+    ax.set_ylabel('Residual (pred - true)')
+plt.suptitle('Residuals vs True', fontsize=13)
+plt.tight_layout()
+plt.savefig("/mnt/c/Users/Stefan/Desktop/residuals_vs_true_custom.png")
 
 print("All plots saved to Desktop!")
